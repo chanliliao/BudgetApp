@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "budget app",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "node backend/index",
     "server": "nodemon backend/index",
@@ -18,7 +19,8 @@
     "express": "^4.17.1",
     "express-async-handler": "^1.1.4",
     "jsonwebtoken": "^8.5.1",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "pg": "^8.7.1"
   },
   "devDependencies": {
     "concurrently": "^6.2.1",

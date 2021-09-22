@@ -16,6 +16,8 @@
 ----- insert data
 -- SELECT * /(col1, col2) FROM table_name 
 ----- view the table * means all or just col 
+-- SELECT * FROM table_name WHERE id = id_num
+----- grab an data 
 
 CREATE TABLE users (
   user_id SERIAL primary key,
