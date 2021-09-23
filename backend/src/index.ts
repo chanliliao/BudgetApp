@@ -1,24 +1,41 @@
 import { MikroORM } from '@mikro-orm/core';
 import { __prod__ } from './constants';
-import { User } from './entities/User';
 import mircoConfig from './mikro-orm.config';
+import express from 'express';
+import { ApolloServer } from 'apollo-server-express';
+import { buildSchema } from 'type-graphql';
+import dotenv from 'dotenv';
 
 const main = async () => {
+  // orm and db connection
   const orm = await MikroORM.init(mircoConfig);
+
   // auto run the migration function
   await orm.getMigrator().up();
 
-  // create an instance of the user
-  // const user = orm.em.create(User, {
-  //   firstName: 'henry',
-  //   lastName: 'liao',
-  //   email: 'hl@gmail.com',
-  // });
+  //set up enviroment files
+  dotenv.config();
 
-  // add the instace to db
-  // await orm.em.persistAndFlush(user);
-  const users = await orm.em.find(User, {});
-  console.log(users);
+  // create server
+  const app = express();
+
+  // create a new apollo server
+  const apolloServer = new ApolloServer({
+    schema: await buildSchema({
+      resolvers: [],
+      validate: false,
+    }),
+  });
+
+  // routes
+
+  // set port
+  const PORT = process.env.PORT || 5000;
+
+  // let us know the server is running
+  app.listen(PORT, () => {
+    console.log(`Server running in ${process.env.NODE_ENV} on port ${PORT}`);
+  });
 };
 
 main().catch((err) => {
