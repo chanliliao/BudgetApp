@@ -3,27 +3,38 @@
   "version": "1.0.0",
   "description": "budget app",
   "main": "index.js",
-  "type": "module",
   "scripts": {
-    "start": "node backend/index",
-    "server": "nodemon backend/index",
-    "client": "npm start --prefix frontend",
-    "dev": "concurrently \"npm run server\" \"npm run client\""
+    "watch": "tsc -w",
+    "start": "node backend/dist/index.js",
+    "dev": "nodemon backend/dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chanliliao/BudgetApp.git"
   },
   "author": "Henry Liao",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chanliliao/BudgetApp/issues"
+  },
+  "homepage": "https://github.com/chanliliao/BudgetApp#readme",
+  "devDependencies": {
+    "@types/node": "^16.9.6",
+    "nodemon": "^2.0.12",
+    "typescript": "^4.4.3"
+  },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "colors": "^1.4.0",
-    "dotenv": "^10.0.0",
-    "express": "^4.17.1",
-    "express-async-handler": "^1.1.4",
-    "jsonwebtoken": "^8.5.1",
-    "morgan": "^1.10.0",
+    "@mikro-orm/cli": "^4.5.9",
+    "@mikro-orm/core": "^4.5.9",
+    "@mikro-orm/migrations": "^4.5.9",
+    "@mikro-orm/postgresql": "^4.5.9",
     "pg": "^8.7.1"
   },
-  "devDependencies": {
-    "concurrently": "^6.2.1",
-    "nodemon": "^2.0.12"
+  "mikro-orm": {
+    "useTsNode": true,
+    "configPaths": [
+      "./backend/src/mikro-orm.config.ts",
+      "./backend/dist/mikro-orm.config.js"
+    ]
   }
 }
