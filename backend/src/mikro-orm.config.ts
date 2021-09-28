@@ -1,5 +1,5 @@
 import { __prod__ } from './constants';
-import { User } from './entities/User';
+import { Account } from './entities/Account';
 import { MikroORM } from '@mikro-orm/core';
 import path from 'path';
 
@@ -12,7 +12,7 @@ export default {
     // [tj] this makes it accept ts and js files
     pattern: /^[\w-]+\d+\.[tj]s$/,
   },
-  entities: [User],
+  entities: [Account],
   dbName: 'budget_app',
   user: 'postgres',
   password: 'H119d201m611d215',
