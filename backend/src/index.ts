@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { MikroORM } from '@mikro-orm/core';
-import { __prod__ } from './constants';
+import { COOKIE_NAME, __prod__ } from './constants';
 import mircoConfig from './mikro-orm.config';
 import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
@@ -8,10 +8,12 @@ import { buildSchema } from 'type-graphql';
 import dotenv from 'dotenv';
 import { AccResolver } from './resolvers/account';
 import { HelloResolver } from './resolvers/hello';
-import Redis from 'ioredis';
+import redis from 'redis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
-import { MyContext } from './types';
+import cors from 'cors';
+import { sendEmail } from './utils/sendEmail';
+import { Account } from './entities/Account';
 
 declare module 'express-session' {
   interface Session {
@@ -23,6 +25,9 @@ const main = async () => {
   // orm and db connection
   const orm = await MikroORM.init(mircoConfig);
 
+  // clear all data from table
+  // await orm.em.nativeDelete(Account, {})
+
   // auto run the migration function
   await orm.getMigrator().up();
 
@@ -32,30 +37,40 @@ const main = async () => {
   // create server
   const app = express();
 
+  app.use(
+    cors({
+      origin: 'http://localhost:3000',
+      credentials: true,
+    })
+  );
+
   // // connect redis and sessions
-  // const RedisStore = connectRedis(session);
-  // const redis = new Redis('127.0.0.1:6379');
+  const RedisStore = connectRedis(session);
+  const redisClient = redis.createClient({
+    host: 'localhost',
+    port: 6379,
+  });
   // app.set('trust proxy', 1);
-  // app.use(
-  //   session({
-  //     // name of the session
-  //     name: 'qid',
-  //     // telling session we are using redis
-  //     store: new RedisStore({
-  //       client: redis,
-  //       disableTouch: true,
-  //     }),
-  //     cookie: {
-  //       maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
-  //       httpOnly: true,
-  //       sameSite: 'lax', //csrf
-  //       secure: __prod__, //cookie only works in https
-  //     },
-  //     saveUninitialized: false,
-  //     secret: 'budget',
-  //     resave: false,
-  //   })
-  // );
+  app.use(
+    session({
+      // name of the session
+      name: COOKIE_NAME,
+      // telling session we are using redis
+      store: new RedisStore({
+        client: redisClient,
+        disableTouch: true,
+      }),
+      cookie: {
+        maxAge: 1000 * 60 * 60 * 24 * 365 * 10,
+        httpOnly: true,
+        sameSite: 'lax', //csrf
+        secure: __prod__, //cookie only works in https
+      },
+      saveUninitialized: false,
+      secret: 'budget',
+      resave: false,
+    })
+  );
 
   // create a new apollo server
   const apolloServer = new ApolloServer({
@@ -63,7 +78,7 @@ const main = async () => {
       resolvers: [HelloResolver, AccResolver],
       validate: false,
     }),
-    context: ({ req, res }): MyContext => ({
+    context: ({ req, res }) => ({
       em: orm.em,
       req,
       res,
@@ -71,7 +86,10 @@ const main = async () => {
   });
 
   await apolloServer.start();
-  apolloServer.applyMiddleware({ app });
+  apolloServer.applyMiddleware({
+    app,
+    cors: false,
+  });
 
   // routes
 

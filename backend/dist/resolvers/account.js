@@ -19,19 +19,9 @@ exports.AccResolver = void 0;
 const type_graphql_1 = require("type-graphql");
 const Account_1 = require("../entities/Account");
 const argon2_1 = __importDefault(require("argon2"));
-let EmailPasswordInput = class EmailPasswordInput {
-};
-__decorate([
-    (0, type_graphql_1.Field)(),
-    __metadata("design:type", String)
-], EmailPasswordInput.prototype, "email", void 0);
-__decorate([
-    (0, type_graphql_1.Field)(),
-    __metadata("design:type", String)
-], EmailPasswordInput.prototype, "password", void 0);
-EmailPasswordInput = __decorate([
-    (0, type_graphql_1.InputType)()
-], EmailPasswordInput);
+const constants_1 = require("../constants");
+const EmailPasswordInput_1 = require("../utils/EmailPasswordInput");
+const validationReg_1 = require("../utils/validationReg");
 let FieldError = class FieldError {
 };
 __decorate([
@@ -66,44 +56,45 @@ let AccResolver = class AccResolver {
         const acc = await em.findOne(Account_1.Account, { _id: req.session.accId });
         return acc;
     }
+    async forgotPW(email, { em, req }) {
+        const valid = em.findOne(Account_1.Account, { email: email });
+        if (!valid) {
+        }
+        else {
+        }
+    }
     async register(options, { em, req }) {
-        if (options.email.length === 0) {
-            return {
-                errors: [
-                    {
-                        field: 'email',
-                        message: 'Please input your email',
-                    },
-                ],
-            };
-        }
-        const valid = await em.findOne(Account_1.Account, { email: options.email });
-        if (valid) {
-            return {
-                errors: [
-                    {
-                        field: 'email',
-                        message: 'Account exist',
-                    },
-                ],
-            };
-        }
-        if (options.password.length <= 3) {
-            return {
-                errors: [
-                    {
-                        field: 'password',
-                        message: 'Length must be greater than 3',
-                    },
-                ],
-            };
+        const errors = (0, validationReg_1.validateReg)(options);
+        if (errors) {
+            return { errors };
         }
         const hashedPassword = await argon2_1.default.hash(options.password);
-        const acc = em.create(Account_1.Account, {
-            email: options.email,
-            password: hashedPassword,
-        });
-        await em.persistAndFlush(acc);
+        let acc;
+        try {
+            const result = await em
+                .createQueryBuilder(Account_1.Account)
+                .getKnexQuery()
+                .insert({
+                email: options.email,
+                password: hashedPassword,
+                created_at: new Date(),
+                updated_at: new Date(),
+            })
+                .returning('*');
+            acc = result[0];
+        }
+        catch (err) {
+            if (err.code === '23505') {
+                return {
+                    errors: [
+                        {
+                            field: 'email',
+                            message: 'Account exist',
+                        },
+                    ],
+                };
+            }
+        }
         req.session.accId = acc._id;
         return { acc };
     }
@@ -133,6 +124,17 @@ let AccResolver = class AccResolver {
         req.session.accId = acc._id;
         return { acc };
     }
+    logout({ res, req }) {
+        return new Promise((resolve) => req.session.destroy((err) => {
+            if (err) {
+                console.log(err);
+                resolve(false);
+                return;
+            }
+            res.clearCookie(constants_1.COOKIE_NAME);
+            resolve(true);
+        }));
+    }
 };
 __decorate([
     (0, type_graphql_1.Query)(() => Account_1.Account, { nullable: true }),
@@ -142,11 +144,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AccResolver.prototype, "me", null);
 __decorate([
+    (0, type_graphql_1.Mutation)(() => Boolean),
+    __param(0, (0, type_graphql_1.Arg)('email')),
+    __param(1, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AccResolver.prototype, "forgotPW", null);
+__decorate([
     (0, type_graphql_1.Mutation)(() => AccResponse),
     __param(0, (0, type_graphql_1.Arg)('options')),
     __param(1, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [EmailPasswordInput, Object]),
+    __metadata("design:paramtypes", [EmailPasswordInput_1.EmailPasswordInput, Object]),
     __metadata("design:returntype", Promise)
 ], AccResolver.prototype, "register", null);
 __decorate([
@@ -154,9 +164,16 @@ __decorate([
     __param(0, (0, type_graphql_1.Arg)('options')),
     __param(1, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [EmailPasswordInput, Object]),
+    __metadata("design:paramtypes", [EmailPasswordInput_1.EmailPasswordInput, Object]),
     __metadata("design:returntype", Promise)
 ], AccResolver.prototype, "login", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => Boolean),
+    __param(0, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", void 0)
+], AccResolver.prototype, "logout", null);
 AccResolver = __decorate([
     (0, type_graphql_1.Resolver)()
 ], AccResolver);

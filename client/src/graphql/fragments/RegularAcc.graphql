@@ -1,0 +1,4 @@
+fragment RegularAcc on Account {
+  _id
+  email
+}

@@ -2,7 +2,6 @@ import {
   Arg,
   Ctx,
   Field,
-  InputType,
   Mutation,
   ObjectType,
   Query,
@@ -11,15 +10,10 @@ import {
 import { Account } from '../entities/Account';
 import { MyContext } from '../types';
 import argon2 from 'argon2';
-
-// for arguments
-@InputType()
-class EmailPasswordInput {
-  @Field()
-  email: string;
-  @Field()
-  password: string;
-}
+import { EntityManager } from '@mikro-orm/postgresql';
+import { COOKIE_NAME } from '../constants';
+import { EmailPasswordInput } from '../utils/EmailPasswordInput';
+import { validateReg } from '../utils/validationReg';
 
 // for returns
 @ObjectType()
@@ -43,6 +37,7 @@ class AccResponse {
 
 @Resolver()
 export class AccResolver {
+  // Authencation
   @Query(() => Account, { nullable: true })
   async me(@Ctx() { req, em }: MyContext) {
     // you are not logged in
@@ -52,6 +47,17 @@ export class AccResolver {
     const acc = await em.findOne(Account, { _id: req.session.accId });
     return acc;
   }
+
+  //Forgot password
+  @Mutation(() => Boolean)
+  async forgotPW(@Arg('email') email: string, @Ctx() { em, req }: MyContext) {
+    // validation
+    const valid = em.findOne(Account, { email: email });
+    if (!valid) {
+    } else {
+    }
+  }
+
   // Register Acc
   @Mutation(() => AccResponse)
   async register(
@@ -59,46 +65,37 @@ export class AccResolver {
     @Ctx() { em, req }: MyContext
   ): Promise<AccResponse> {
     // Validation
-    if (options.email.length === 0) {
-      return {
-        errors: [
-          {
-            field: 'email',
-            message: 'Please input your email',
-          },
-        ],
-      };
-    }
-    const valid = await em.findOne(Account, { email: options.email });
-    if (valid) {
-      return {
-        errors: [
-          {
-            field: 'email',
-            message: 'Account exist',
-          },
-        ],
-      };
-    }
-
-    if (options.password.length <= 3) {
-      return {
-        errors: [
-          {
-            field: 'password',
-            message: 'Length must be greater than 3',
-          },
-        ],
-      };
+    const errors = validateReg(options);
+    if (errors) {
+      return { errors };
     }
 
     const hashedPassword = await argon2.hash(options.password);
-    const acc = em.create(Account, {
-      email: options.email,
-      password: hashedPassword,
-    });
-    await em.persistAndFlush(acc);
-
+    let acc;
+    try {
+      const result = await (em as EntityManager)
+        .createQueryBuilder(Account)
+        .getKnexQuery()
+        .insert({
+          email: options.email,
+          password: hashedPassword,
+          created_at: new Date(),
+          updated_at: new Date(),
+        })
+        .returning('*');
+      acc = result[0];
+    } catch (err) {
+      if (err.code === '23505') {
+        return {
+          errors: [
+            {
+              field: 'email',
+              message: 'Account exist',
+            },
+          ],
+        };
+      }
+    }
     // set the session
     req.session.accId = acc._id;
 
@@ -139,7 +136,21 @@ export class AccResolver {
 
     return { acc };
   }
-  // Login A
+  // Logout
+  @Mutation(() => Boolean)
+  logout(@Ctx() { res, req }: MyContext) {
+    return new Promise((resolve) =>
+      req.session.destroy((err) => {
+        if (err) {
+          console.log(err);
+          resolve(false);
+          return;
+        }
+        res.clearCookie(COOKIE_NAME);
+        resolve(true);
+      })
+    );
+  }
 
   // UPDATE Acc
   // DEL Acc
