@@ -8,12 +8,11 @@ import { buildSchema } from 'type-graphql';
 import dotenv from 'dotenv';
 import { AccResolver } from './resolvers/account';
 import { HelloResolver } from './resolvers/hello';
-import redis from 'redis';
+import Redis from 'ioredis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 import cors from 'cors';
-import { sendEmail } from './utils/sendEmail';
-import { Account } from './entities/Account';
+// import { Account } from './entities/Account';
 
 declare module 'express-session' {
   interface Session {
@@ -26,7 +25,7 @@ const main = async () => {
   const orm = await MikroORM.init(mircoConfig);
 
   // clear all data from table
-  // await orm.em.nativeDelete(Account, {})
+  // await orm.em.nativeDelete(Account, {});
 
   // auto run the migration function
   await orm.getMigrator().up();
@@ -46,18 +45,15 @@ const main = async () => {
 
   // // connect redis and sessions
   const RedisStore = connectRedis(session);
-  const redisClient = redis.createClient({
-    host: 'localhost',
-    port: 6379,
-  });
-  // app.set('trust proxy', 1);
+  const redis = new Redis();
+  app.set('trust proxy', 1);
   app.use(
     session({
       // name of the session
       name: COOKIE_NAME,
       // telling session we are using redis
       store: new RedisStore({
-        client: redisClient,
+        client: redis,
         disableTouch: true,
       }),
       cookie: {
@@ -82,6 +78,7 @@ const main = async () => {
       em: orm.em,
       req,
       res,
+      redis,
     }),
   });
 

@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.validateReg = void 0;
-const validateReg = (options) => {
-    if (!options.email.includes('@')) {
+const validateReg = (email, password) => {
+    if (!email.includes('@')) {
         return [
             {
                 field: 'email',
@@ -10,7 +10,7 @@ const validateReg = (options) => {
             },
         ];
     }
-    if (options.password.length <= 3) {
+    if (password.length <= 3) {
         return [
             {
                 field: 'password',

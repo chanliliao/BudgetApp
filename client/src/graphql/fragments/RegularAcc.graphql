@@ -1,4 +1,6 @@
 fragment RegularAcc on Account {
   _id
+  # firstName
+  # lastName
   email
 }

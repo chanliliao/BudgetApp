@@ -22,6 +22,8 @@ const argon2_1 = __importDefault(require("argon2"));
 const constants_1 = require("../constants");
 const EmailPasswordInput_1 = require("../utils/EmailPasswordInput");
 const validationReg_1 = require("../utils/validationReg");
+const sendEmail_1 = require("../utils/sendEmail");
+const uuid_1 = require("uuid");
 let FieldError = class FieldError {
 };
 __decorate([
@@ -56,26 +58,29 @@ let AccResolver = class AccResolver {
         const acc = await em.findOne(Account_1.Account, { _id: req.session.accId });
         return acc;
     }
-    async forgotPW(email, { em, req }) {
-        const valid = em.findOne(Account_1.Account, { email: email });
-        if (!valid) {
+    async forgotPW(email, { em, redis }) {
+        const acc = await em.findOne(Account_1.Account, { email: email });
+        if (!acc) {
+            return true;
         }
-        else {
-        }
+        const token = (0, uuid_1.v4)();
+        await redis.set(constants_1.FORGET_PASSWORD_PREFIX + token, acc._id, 'ex', 1000 * 60 * 60);
+        await (0, sendEmail_1.sendEmail)(email, `<a href="http://localhost:3000/change-password/${token}">reset password</a>`);
+        return true;
     }
-    async register(options, { em, req }) {
-        const errors = (0, validationReg_1.validateReg)(options);
+    async register(email, password, { em, req }) {
+        const errors = (0, validationReg_1.validateReg)(email, password);
         if (errors) {
             return { errors };
         }
-        const hashedPassword = await argon2_1.default.hash(options.password);
+        const hashedPassword = await argon2_1.default.hash(password);
         let acc;
         try {
             const result = await em
                 .createQueryBuilder(Account_1.Account)
                 .getKnexQuery()
                 .insert({
-                email: options.email,
+                email: email,
                 password: hashedPassword,
                 created_at: new Date(),
                 updated_at: new Date(),
@@ -96,6 +101,7 @@ let AccResolver = class AccResolver {
             }
         }
         req.session.accId = acc._id;
+        console.log(acc);
         return { acc };
     }
     async login(options, { em, req }) {
@@ -153,10 +159,11 @@ __decorate([
 ], AccResolver.prototype, "forgotPW", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => AccResponse),
-    __param(0, (0, type_graphql_1.Arg)('options')),
-    __param(1, (0, type_graphql_1.Ctx)()),
+    __param(0, (0, type_graphql_1.Arg)('email')),
+    __param(1, (0, type_graphql_1.Arg)('password')),
+    __param(2, (0, type_graphql_1.Ctx)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [EmailPasswordInput_1.EmailPasswordInput, Object]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
 ], AccResolver.prototype, "register", null);
 __decorate([

@@ -11,9 +11,11 @@ import { Account } from '../entities/Account';
 import { MyContext } from '../types';
 import argon2 from 'argon2';
 import { EntityManager } from '@mikro-orm/postgresql';
-import { COOKIE_NAME } from '../constants';
+import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants';
 import { EmailPasswordInput } from '../utils/EmailPasswordInput';
 import { validateReg } from '../utils/validationReg';
+import { sendEmail } from '../utils/sendEmail';
+import { v4 } from 'uuid';
 
 // for returns
 @ObjectType()
@@ -50,34 +52,59 @@ export class AccResolver {
 
   //Forgot password
   @Mutation(() => Boolean)
-  async forgotPW(@Arg('email') email: string, @Ctx() { em, req }: MyContext) {
+  async forgotPW(@Arg('email') email: string, @Ctx() { em, redis }: MyContext) {
     // validation
-    const valid = em.findOne(Account, { email: email });
-    if (!valid) {
-    } else {
+    const acc = await em.findOne(Account, { email: email });
+    if (!acc) {
+      // email does not exist
+      return true;
     }
+
+    const token = v4();
+    await redis.set(
+      FORGET_PASSWORD_PREFIX + token,
+      acc._id,
+      'ex',
+      1000 * 60 * 60
+    );
+
+    await sendEmail(
+      email,
+      `<a href="http://localhost:3000/change-password/${token}">reset password</a>`
+    );
+    return true;
   }
 
   // Register Acc
   @Mutation(() => AccResponse)
   async register(
-    @Arg('options') options: EmailPasswordInput,
+    // @Arg('firstName') firstName: string,
+    // @Arg('lastName') lastName: string,
+    @Arg('email') email: string,
+    @Arg('password') password: string,
     @Ctx() { em, req }: MyContext
   ): Promise<AccResponse> {
     // Validation
-    const errors = validateReg(options);
+    const errors = validateReg(
+      // firstName, lastName,
+      email,
+      password
+    );
     if (errors) {
       return { errors };
     }
 
-    const hashedPassword = await argon2.hash(options.password);
+    const hashedPassword = await argon2.hash(password);
+
     let acc;
     try {
       const result = await (em as EntityManager)
         .createQueryBuilder(Account)
         .getKnexQuery()
         .insert({
-          email: options.email,
+          // first_name: firstName,
+          // last_name: lastName,
+          email: email,
           password: hashedPassword,
           created_at: new Date(),
           updated_at: new Date(),
@@ -98,7 +125,7 @@ export class AccResolver {
     }
     // set the session
     req.session.accId = acc._id;
-
+    console.log(acc);
     return { acc };
   }
   // Login Acc

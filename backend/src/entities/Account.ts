@@ -10,6 +10,14 @@ export class Account {
   @PrimaryKey()
   _id!: number;
 
+  // @Field(() => String)
+  // @Property()
+  // firstName!: string;
+
+  // @Field(() => String)
+  // @Property()
+  // lastName!: string;
+
   @Field(() => String)
   @Property({ unique: true })
   email!: string;
