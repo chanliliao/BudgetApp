@@ -12,6 +12,7 @@ import Redis from 'ioredis';
 import session from 'express-session';
 import connectRedis from 'connect-redis';
 import cors from 'cors';
+import { TransactionResolver } from './resolvers/transaction';
 // import { Account } from './entities/Account';
 
 declare module 'express-session' {
@@ -71,7 +72,7 @@ const main = async () => {
   // create a new apollo server
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [HelloResolver, AccResolver],
+      resolvers: [HelloResolver, AccResolver, TransactionResolver],
       validate: false,
     }),
     context: ({ req, res }) => ({

@@ -1,4 +1,4 @@
-export const validateReg = (
+export const validateRegister = (
   // firstName: string,
   // lastName: string,
   email: string,

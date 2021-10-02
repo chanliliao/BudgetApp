@@ -2,6 +2,7 @@ import { __prod__ } from './constants';
 import { Account } from './entities/Account';
 import { MikroORM } from '@mikro-orm/core';
 import path from 'path';
+import { Transaction } from './entities/Transaction';
 
 // this set up is for CLI
 // using migrations
@@ -12,7 +13,7 @@ export default {
     // [tj] this makes it accept ts and js files
     pattern: /^[\w-]+\d+\.[tj]s$/,
   },
-  entities: [Account],
+  entities: [Account, Transaction],
   dbName: 'budget_app',
   user: 'postgres',
   password: 'H119d201m611d215',

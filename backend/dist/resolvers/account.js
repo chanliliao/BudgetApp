@@ -21,7 +21,7 @@ const Account_1 = require("../entities/Account");
 const argon2_1 = __importDefault(require("argon2"));
 const constants_1 = require("../constants");
 const EmailPasswordInput_1 = require("../utils/EmailPasswordInput");
-const validationReg_1 = require("../utils/validationReg");
+const validationRegister_1 = require("../utils/validationRegister");
 const sendEmail_1 = require("../utils/sendEmail");
 const uuid_1 = require("uuid");
 let FieldError = class FieldError {
@@ -58,6 +58,42 @@ let AccResolver = class AccResolver {
         const acc = await em.findOne(Account_1.Account, { _id: req.session.accId });
         return acc;
     }
+    async changePassword(token, newPassword, { em, redis, req }) {
+        if (newPassword.length <= 3) {
+            return {
+                errors: [
+                    {
+                        field: 'newPassword',
+                        message: 'Length must be greater than 3',
+                    },
+                ],
+            };
+        }
+        const key = constants_1.FORGET_PASSWORD_PREFIX + token;
+        const accId = await redis.get(key);
+        if (!accId) {
+            return {
+                errors: [{ field: 'token', message: 'token expired' }],
+            };
+        }
+        const acc = await em.findOne(Account_1.Account, { _id: parseInt(accId) });
+        if (!acc) {
+            return {
+                errors: [
+                    {
+                        field: 'token',
+                        message: 'User no longer exist',
+                    },
+                ],
+            };
+        }
+        const hashedPassword = await argon2_1.default.hash(newPassword);
+        acc.password = hashedPassword;
+        await em.persistAndFlush(acc);
+        await redis.del(key);
+        req.session.accId = acc._id;
+        return { acc };
+    }
     async forgotPW(email, { em, redis }) {
         const acc = await em.findOne(Account_1.Account, { email: email });
         if (!acc) {
@@ -69,7 +105,7 @@ let AccResolver = class AccResolver {
         return true;
     }
     async register(email, password, { em, req }) {
-        const errors = (0, validationReg_1.validateReg)(email, password);
+        const errors = (0, validationRegister_1.validateRegister)(email, password);
         if (errors) {
             return { errors };
         }
@@ -149,6 +185,15 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AccResolver.prototype, "me", null);
+__decorate([
+    (0, type_graphql_1.Mutation)(() => AccResponse),
+    __param(0, (0, type_graphql_1.Arg)('token')),
+    __param(1, (0, type_graphql_1.Arg)('newPassword')),
+    __param(2, (0, type_graphql_1.Ctx)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], AccResolver.prototype, "changePassword", null);
 __decorate([
     (0, type_graphql_1.Mutation)(() => Boolean),
     __param(0, (0, type_graphql_1.Arg)('email')),

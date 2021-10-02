@@ -10,12 +10,6 @@ mutation Register(
     email: $email
     password: $password
   ) {
-    errors {
-      field
-      message
-    }
-    acc {
-      ...RegularAcc
-    }
+    ...RegularAccRes
   }
 }

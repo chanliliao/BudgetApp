@@ -13,7 +13,7 @@ import argon2 from 'argon2';
 import { EntityManager } from '@mikro-orm/postgresql';
 import { COOKIE_NAME, FORGET_PASSWORD_PREFIX } from '../constants';
 import { EmailPasswordInput } from '../utils/EmailPasswordInput';
-import { validateReg } from '../utils/validationReg';
+import { validateRegister } from '../utils/validationRegister';
 import { sendEmail } from '../utils/sendEmail';
 import { v4 } from 'uuid';
 
@@ -48,6 +48,55 @@ export class AccResolver {
     }
     const acc = await em.findOne(Account, { _id: req.session.accId });
     return acc;
+  }
+
+  // Change password
+  @Mutation(() => AccResponse)
+  async changePassword(
+    @Arg('token') token: string,
+    @Arg('newPassword') newPassword: string,
+    @Ctx() { em, redis, req }: MyContext
+  ): Promise<AccResponse> {
+    if (newPassword.length <= 3) {
+      return {
+        errors: [
+          {
+            field: 'newPassword',
+            message: 'Length must be greater than 3',
+          },
+        ],
+      };
+    }
+
+    const key = FORGET_PASSWORD_PREFIX + token;
+    const accId = await redis.get(key);
+
+    if (!accId) {
+      return {
+        errors: [{ field: 'token', message: 'token expired' }],
+      };
+    }
+
+    const acc = await em.findOne(Account, { _id: parseInt(accId) });
+
+    if (!acc) {
+      return {
+        errors: [
+          {
+            field: 'token',
+            message: 'User no longer exist',
+          },
+        ],
+      };
+    }
+    const hashedPassword = await argon2.hash(newPassword);
+    acc.password = hashedPassword;
+    await em.persistAndFlush(acc);
+
+    await redis.del(key);
+    // set the session
+    req.session.accId = acc._id;
+    return { acc };
   }
 
   //Forgot password
@@ -85,7 +134,7 @@ export class AccResolver {
     @Ctx() { em, req }: MyContext
   ): Promise<AccResponse> {
     // Validation
-    const errors = validateReg(
+    const errors = validateRegister(
       // firstName, lastName,
       email,
       password

@@ -17,6 +17,7 @@ const ioredis_1 = __importDefault(require("ioredis"));
 const express_session_1 = __importDefault(require("express-session"));
 const connect_redis_1 = __importDefault(require("connect-redis"));
 const cors_1 = __importDefault(require("cors"));
+const transaction_1 = require("./resolvers/transaction");
 const main = async () => {
     const orm = await core_1.MikroORM.init(mikro_orm_config_1.default);
     await orm.getMigrator().up();
@@ -47,7 +48,7 @@ const main = async () => {
     }));
     const apolloServer = new apollo_server_express_1.ApolloServer({
         schema: await (0, type_graphql_1.buildSchema)({
-            resolvers: [hello_1.HelloResolver, account_1.AccResolver],
+            resolvers: [hello_1.HelloResolver, account_1.AccResolver, transaction_1.TransactionResolver],
             validate: false,
         }),
         context: ({ req, res }) => ({

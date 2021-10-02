@@ -1,0 +1,8 @@
+fragment RegularAccRes on AccResponse {
+  errors {
+    ...RegularErr
+  }
+  acc {
+    ...RegularAcc
+  }
+}
